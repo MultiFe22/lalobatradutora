@@ -239,18 +239,18 @@ async def main():
 
     app = LobaApp(config)
 
-    # Set up translator with absolute path (prefer M2M100 for Brazilian Portuguese)
-    m2m100_path = script_dir / "models" / "m2m100-en-pt-br-ct2"
+    # Set up translator with absolute path (prefer MarianMT for better accuracy)
     marian_path = script_dir / "models" / "opus-mt-en-pt-ct2"
+    m2m100_path = script_dir / "models" / "m2m100-en-pt-br-ct2"
 
-    if m2m100_path.exists():
-        app.translator = M2M100Translator(model_path=str(m2m100_path))
-        print("M2M100 model found, EN->PT-BR (Brazilian) translation enabled")
-    elif marian_path.exists():
+    if marian_path.exists():
         app.translator = CTranslate2Translator(model_path=str(marian_path))
         print("MarianMT model found, EN->PT translation enabled")
+    elif m2m100_path.exists():
+        app.translator = M2M100Translator(model_path=str(m2m100_path))
+        print("M2M100 model found, EN->PT-BR (Brazilian) translation enabled")
     else:
-        print(f"No translation model found")
+        print("No translation model found")
         print("Running in transcription-only mode (English)")
 
     # Handle shutdown signals
