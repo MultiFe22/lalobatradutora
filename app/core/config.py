@@ -26,7 +26,7 @@ class SegmenterConfig:
 class WhisperConfig:
     """Whisper transcription configuration."""
     binary_path: Path = field(default_factory=lambda: Path("bin/whisper-cli"))
-    model_path: Path = field(default_factory=lambda: Path("models/ggml-base.en.bin"))
+    model_path: Path = field(default_factory=lambda: Path("models/ggml-small.en-q5_1.bin"))
     language: str = "en"
     threads: int = 4
 
