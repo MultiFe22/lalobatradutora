@@ -3,7 +3,7 @@
 Loba - Live OBS Subtitle Application
 
 Main entry point for the EN -> PT live subtitles for OBS.
-Phase 1: Local transcription only (English captions).
+Phase 2: Local transcription + offline translation.
 """
 
 import asyncio
@@ -17,7 +17,7 @@ from app.core.events import create_final_event, create_clear_event
 from app.core.segmenter import Segmenter, AudioSegment
 from app.adapters.audio_mic import MicrophoneCapture
 from app.adapters.whisper_runner import WhisperRunner
-from app.adapters.translator import PassthroughTranslator
+from app.adapters.translator import M2M100Translator, CTranslate2Translator
 from app.server import OverlayServer
 
 
@@ -37,7 +37,7 @@ class LobaApp:
         )
         self.segmenter = Segmenter(config.segmenter)
         self.whisper = WhisperRunner(config.whisper)
-        self.translator = PassthroughTranslator()  # Phase 1: no translation
+        self.translator: CTranslate2Translator | None = None  # Lazy loaded
 
         self._running = False
         self._executor = ThreadPoolExecutor(max_workers=2)
@@ -60,8 +60,16 @@ class LobaApp:
             print(f"  Model: {self.whisper.model_path} (exists: {self.whisper.model_path.exists()})")
             return
 
+        # Check translator availability
+        if self.translator and not self.translator.is_available():
+            print(f"\nERROR: Translation model not available!")
+            print(f"  Path: {self.translator.model_path}")
+            return
+
         print(f"\nWhisper: {self.whisper.binary_path}")
         print(f"Model: {self.whisper.model_path}")
+        if self.translator:
+            print(f"Translator: {self.translator.model_path}")
         print(f"Server: http://{self.config.server.host}:{self.config.server.port}")
         print(f"\nOBS Browser Source URL:")
         print(f"  http://{self.config.server.host}:{self.config.server.port}/overlay")
@@ -168,12 +176,24 @@ class LobaApp:
             text = result.text.strip()
 
             if text:
-                # Phase 1: No translation, just pass through
-                translated = self.translator.translate(text)
-                print(f"  > {translated.translated_text}")
+                print(f"  EN: {text}")
+
+                # Translate if translator is available
+                if self.translator:
+                    translated = await asyncio.get_running_loop().run_in_executor(
+                        self._executor,
+                        self.translator.translate,
+                        text,
+                    )
+                    output_text = translated.translated_text
+                    output_lang = "pt"
+                    print(f"  PT: {output_text}")
+                else:
+                    output_text = text
+                    output_lang = "en"
 
                 # Broadcast to overlay
-                event = create_final_event(translated.translated_text, language="en")
+                event = create_final_event(output_text, language=output_lang)
                 await self.server.broadcast(event)
             else:
                 print("  (no speech detected)")
@@ -193,6 +213,20 @@ async def main():
     config.whisper.model_path = script_dir / config.whisper.model_path
 
     app = LobaApp(config)
+
+    # Set up translator with absolute path (prefer M2M100 for Brazilian Portuguese)
+    m2m100_path = script_dir / "models" / "m2m100-en-pt-br-ct2"
+    marian_path = script_dir / "models" / "opus-mt-en-pt-ct2"
+
+    if m2m100_path.exists():
+        app.translator = M2M100Translator(model_path=str(m2m100_path))
+        print("M2M100 model found, EN->PT-BR (Brazilian) translation enabled")
+    elif marian_path.exists():
+        app.translator = CTranslate2Translator(model_path=str(marian_path))
+        print("MarianMT model found, EN->PT translation enabled")
+    else:
+        print(f"No translation model found")
+        print("Running in transcription-only mode (English)")
 
     # Handle shutdown signals
     loop = asyncio.get_running_loop()

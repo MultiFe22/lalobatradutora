@@ -77,26 +77,61 @@ class CloudTranslator(Translator):
         return self.api_key is not None
 
 
-class OfflineTranslator(Translator):
+class CTranslate2Translator(Translator):
     """
-    Offline translation using local models.
+    Offline translation using CTranslate2 with Helsinki-NLP MarianMT model.
 
-    Harder to implement but fully local (no internet required).
+    Fast, efficient, fully local translation (no internet required).
     """
 
     def __init__(
         self,
-        model_path: Optional[str] = None,
+        model_path: str = "models/opus-mt-en-pt-ct2",
         source_lang: str = "en",
         target_lang: str = "pt",
+        device: str = "auto",
     ):
-        self.model_path = model_path
+        from pathlib import Path
+        self.model_path = Path(model_path)
         self.source_lang = source_lang
         self.target_lang = target_lang
-        self._model = None
+        self.device = device
+
+        self._translator = None
+        self._tokenizer = None
+        self._loaded = False
+
+    def load(self) -> None:
+        """Load the model and tokenizer."""
+        if self._loaded:
+            return
+
+        try:
+            import ctranslate2
+            from transformers import MarianTokenizer
+
+            # Load CTranslate2 model
+            self._translator = ctranslate2.Translator(
+                str(self.model_path),
+                device=self.device,
+            )
+
+            # Load tokenizer
+            self._tokenizer = MarianTokenizer.from_pretrained(str(self.model_path))
+
+            self._loaded = True
+            print(f"Translation model loaded from {self.model_path}")
+
+        except ImportError as e:
+            raise RuntimeError(
+                "CTranslate2 or transformers not installed. "
+                "Run: pip install ctranslate2 transformers sentencepiece"
+            ) from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to load translation model: {e}") from e
 
     def translate(self, text: str) -> TranslationResult:
-        """Translate text using local model."""
+        """Translate text from English to Portuguese."""
         if not text.strip():
             return TranslationResult(
                 source_text=text,
@@ -105,12 +140,136 @@ class OfflineTranslator(Translator):
                 target_lang=self.target_lang,
             )
 
-        # TODO: Implement with local model (e.g., MarianMT, NLLB)
-        raise NotImplementedError("Offline translation not yet implemented")
+        # Lazy load model on first use
+        if not self._loaded:
+            self.load()
+
+        # Tokenize input
+        tokens = self._tokenizer.convert_ids_to_tokens(
+            self._tokenizer.encode(text)
+        )
+
+        # Translate
+        results = self._translator.translate_batch([tokens])
+
+        # Decode output
+        output_tokens = results[0].hypotheses[0]
+        translated_text = self._tokenizer.decode(
+            self._tokenizer.convert_tokens_to_ids(output_tokens)
+        )
+
+        return TranslationResult(
+            source_text=text,
+            translated_text=translated_text,
+            source_lang=self.source_lang,
+            target_lang=self.target_lang,
+        )
 
     def is_available(self) -> bool:
-        """Check if model is loaded."""
-        return self._model is not None
+        """Check if model files exist."""
+        return self.model_path.exists()
+
+
+class M2M100Translator(Translator):
+    """
+    Offline translation using CTranslate2 with M2M100 model.
+
+    Supports Brazilian Portuguese (pt_BR) translation.
+    """
+
+    def __init__(
+        self,
+        model_path: str = "models/m2m100-en-pt-br-ct2",
+        source_lang: str = "en",
+        target_lang: str = "pt",
+        device: str = "auto",
+    ):
+        from pathlib import Path
+        self.model_path = Path(model_path)
+        self.source_lang = source_lang
+        self.target_lang = target_lang
+        self.device = device
+
+        self._translator = None
+        self._tokenizer = None
+        self._loaded = False
+
+    def load(self) -> None:
+        """Load the model and tokenizer."""
+        if self._loaded:
+            return
+
+        try:
+            import ctranslate2
+            from transformers import M2M100Tokenizer
+
+            # Load CTranslate2 model
+            self._translator = ctranslate2.Translator(
+                str(self.model_path),
+                device=self.device,
+            )
+
+            # Load tokenizer and set source language
+            self._tokenizer = M2M100Tokenizer.from_pretrained(str(self.model_path))
+            self._tokenizer.src_lang = self.source_lang
+
+            self._loaded = True
+            print(f"M2M100 translation model loaded from {self.model_path}")
+
+        except ImportError as e:
+            raise RuntimeError(
+                "CTranslate2 or transformers not installed. "
+                "Run: pip install ctranslate2 transformers sentencepiece"
+            ) from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to load translation model: {e}") from e
+
+    def translate(self, text: str) -> TranslationResult:
+        """Translate text from English to Portuguese."""
+        if not text.strip():
+            return TranslationResult(
+                source_text=text,
+                translated_text="",
+                source_lang=self.source_lang,
+                target_lang=self.target_lang,
+            )
+
+        # Lazy load model on first use
+        if not self._loaded:
+            self.load()
+
+        # Tokenize input
+        inputs = self._tokenizer(text, return_tensors="pt")
+        tokens = self._tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
+
+        # Target language prefix (M2M100 requires this)
+        target_prefix = [self._tokenizer.lang_code_to_token[self.target_lang]]
+
+        # Translate
+        results = self._translator.translate_batch(
+            [tokens],
+            target_prefix=[target_prefix],
+        )
+
+        # Decode output
+        output_tokens = results[0].hypotheses[0]
+        output_ids = self._tokenizer.convert_tokens_to_ids(output_tokens)
+        translated_text = self._tokenizer.decode(output_ids, skip_special_tokens=True)
+
+        return TranslationResult(
+            source_text=text,
+            translated_text=translated_text,
+            source_lang=self.source_lang,
+            target_lang=self.target_lang,
+        )
+
+    def is_available(self) -> bool:
+        """Check if model files exist."""
+        return self.model_path.exists()
+
+
+# Alias for backwards compatibility
+OfflineTranslator = M2M100Translator
 
 
 class PassthroughTranslator(Translator):
