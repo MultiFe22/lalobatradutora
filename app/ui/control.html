@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subtitle Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+            font-size: 24px;
+            color: #fff;
+        }
+
+        .status {
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: #16213e;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.connected {
+            background: #00d26a;
+        }
+
+        .status-indicator.disconnected {
+            background: #ff4757;
+        }
+
+        .toggle-btn {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .toggle-btn.off {
+            background: linear-gradient(145deg, #2d3436, #1e272e);
+            color: #636e72;
+            box-shadow: 8px 8px 16px #0f1318, -8px -8px 16px #2d3844;
+        }
+
+        .toggle-btn.on {
+            background: linear-gradient(145deg, #00d26a, #00a854);
+            color: #fff;
+            box-shadow: 0 0 30px rgba(0, 210, 106, 0.5);
+        }
+
+        .toggle-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .toggle-btn:active {
+            transform: scale(0.95);
+        }
+
+        .info {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #636e72;
+        }
+
+        .url-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #16213e;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .url-box label {
+            display: block;
+            margin-bottom: 8px;
+            color: #a0a0a0;
+        }
+
+        .url-box input {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            background: #0f1318;
+            color: #fff;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .copy-btn {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: #4a69bd;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .copy-btn:hover {
+            background: #6a89cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Live Subtitles Control</h1>
+
+        <div class="status">
+            <span class="status-indicator disconnected" id="status-indicator"></span>
+            <span id="status-text">Connecting...</span>
+        </div>
+
+        <button class="toggle-btn off" id="toggle-btn" onclick="toggleMode()">
+            OFF
+        </button>
+
+        <div class="url-box">
+            <label>OBS Browser Source URL:</label>
+            <input type="text" id="overlay-url" readonly>
+            <button class="copy-btn" onclick="copyUrl()">Copy URL</button>
+        </div>
+
+        <div class="info">
+            <p>Click the button to toggle subtitle translation</p>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isEnabled = false;
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                document.getElementById('status-indicator').classList.remove('disconnected');
+                document.getElementById('status-indicator').classList.add('connected');
+                document.getElementById('status-text').textContent = 'Connected';
+            };
+
+            ws.onclose = () => {
+                document.getElementById('status-indicator').classList.remove('connected');
+                document.getElementById('status-indicator').classList.add('disconnected');
+                document.getElementById('status-text').textContent = 'Disconnected';
+                setTimeout(connect, 2000);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'mode') {
+                        updateButtonState(data.enabled);
+                    }
+                } catch (e) {}
+            };
+        }
+
+        function toggleMode() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'toggle' }));
+                // Optimistically update UI
+                isEnabled = !isEnabled;
+                updateButtonState(isEnabled);
+            }
+        }
+
+        function updateButtonState(enabled) {
+            const btn = document.getElementById('toggle-btn');
+            isEnabled = enabled;
+
+            if (enabled) {
+                btn.classList.remove('off');
+                btn.classList.add('on');
+                btn.textContent = 'ON';
+            } else {
+                btn.classList.remove('on');
+                btn.classList.add('off');
+                btn.textContent = 'OFF';
+            }
+        }
+
+        function copyUrl() {
+            const urlInput = document.getElementById('overlay-url');
+            urlInput.select();
+            document.execCommand('copy');
+
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 1500);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set overlay URL
+            const overlayUrl = `${window.location.protocol}//${window.location.host}/overlay`;
+            document.getElementById('overlay-url').value = overlayUrl;
+
+            // Connect WebSocket
+            connect();
+        });
+    </script>
+</body>
+</html>

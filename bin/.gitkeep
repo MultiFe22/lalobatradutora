@@ -1,0 +1,5 @@
+# Placeholder for whisper.cpp binaries
+# Add the following files:
+# - whisper-macos (macOS binary)
+# - whisper-windows.exe (Windows binary)
+# - whisper-linux (Linux binary)
