@@ -3,7 +3,7 @@
 Loba - Live OBS Subtitle Application
 
 Main entry point for the EN -> PT live subtitles for OBS.
-Phase 2: Local transcription + offline translation.
+Phase 3: Toggle mode with F11 global hotkey.
 """
 
 import asyncio
@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
-from app.core import AppConfig, load_config, TranslateMode, ModeState
-from app.core.events import create_final_event, create_clear_event
+from app.core import AppConfig, load_config, TranslateMode, ModeState, HotkeyHandler
+from app.core.events import create_final_event
 from app.core.segmenter import Segmenter, AudioSegment
 from app.adapters.audio_mic import MicrophoneCapture
 from app.adapters.whisper_runner import WhisperRunner
@@ -43,9 +43,13 @@ class LobaApp:
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._loop: asyncio.AbstractEventLoop | None = None
 
+        # Hotkey handler for F11 toggle
+        self.hotkey = HotkeyHandler()
+
         # Set up callbacks
         self.mode.set_callback(self._on_mode_change)
         self.mic.set_callback(self._on_audio_chunk)
+        self.hotkey.set_callback(self._on_hotkey_toggle)
 
     async def start(self) -> None:
         """Start the application."""
@@ -80,8 +84,20 @@ class LobaApp:
         self._running = True
         self._loop = asyncio.get_running_loop()
 
+        # Pre-load translation model for instant ready
+        if self.translator:
+            print("\nPre-loading translation model...")
+            await asyncio.get_running_loop().run_in_executor(
+                self._executor,
+                self.translator.load,
+            )
+            print("Translation model ready!")
+
         # Start server
         await self.server.start()
+
+        # Start hotkey listener
+        self.hotkey.start()
 
         # List available microphones
         devices = self.mic.list_devices()
@@ -95,15 +111,16 @@ class LobaApp:
         try:
             self.mic.start()
             print("Microphone capture started")
-            print("Speak to see transcriptions in the overlay!")
-            print("Press Ctrl+C to stop\n")
         except Exception as e:
             print(f"Failed to start microphone: {e}")
             print("Make sure sounddevice is installed: pip install sounddevice")
             return
 
-        # Enable translation mode by default for Phase 1
-        self.mode.turn_on()
+        # Start with translation OFF - user presses F11 to enable
+        print("\n" + "=" * 50)
+        print("Ready! Press F11 to start/stop translation")
+        print("Press Ctrl+C to quit")
+        print("=" * 50 + "\n")
 
         # Main loop
         while self._running:
@@ -113,6 +130,9 @@ class LobaApp:
         """Stop the application."""
         print("\nShutting down...")
         self._running = False
+
+        # Stop hotkey listener
+        self.hotkey.stop()
 
         # Stop microphone
         self.mic.stop()
@@ -130,9 +150,14 @@ class LobaApp:
 
         print("Goodbye!")
 
+    def _on_hotkey_toggle(self) -> None:
+        """Handle F11 hotkey press."""
+        new_state = self.mode.toggle()
+        status = "ON - Translating" if new_state == ModeState.ON else "OFF - Paused"
+        print(f"\n[F11] Translation: {status}")
+
     def _on_mode_change(self, state: ModeState) -> None:
         """Handle mode state changes."""
-        print(f"Mode changed to: {state.value}")
         if state == ModeState.OFF:
             # Clear overlay when turned off
             if self._loop:

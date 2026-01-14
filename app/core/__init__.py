@@ -4,6 +4,7 @@ from .config import AppConfig, load_config
 from .events import SubtitleEvent, EventType, create_final_event, create_clear_event
 from .mode import TranslateMode, ModeState
 from .segmenter import Segmenter, AudioSegment
+from .hotkey import HotkeyHandler
 
 __all__ = [
     "AppConfig",
@@ -16,4 +17,5 @@ __all__ = [
     "ModeState",
     "Segmenter",
     "AudioSegment",
+    "HotkeyHandler",
 ]
