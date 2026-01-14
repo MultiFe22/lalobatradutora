@@ -18,13 +18,17 @@ class SegmenterConfig:
     silence_threshold_ms: int = 400  # 300-500ms to finalize
     max_segment_length_s: float = 10.0  # 8-12s force finalize
     chunk_overlap_ms: int = 200  # helps avoid cut words
+    energy_threshold: float = 0.01  # RMS energy threshold for VAD
+    min_speech_duration_ms: int = 250  # minimum speech to consider valid
 
 
 @dataclass
 class WhisperConfig:
     """Whisper transcription configuration."""
-    model_path: Path = field(default_factory=lambda: Path("models/ggml-small.en.bin"))
+    binary_path: Path = field(default_factory=lambda: Path("bin/whisper-cli"))
+    model_path: Path = field(default_factory=lambda: Path("models/ggml-base.en.bin"))
     language: str = "en"
+    threads: int = 4
 
 
 @dataclass
