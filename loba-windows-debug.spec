@@ -1,0 +1,106 @@
+# -*- mode: python ; coding: utf-8 -*-
+"""
+PyInstaller spec file for Loba - Live OBS Subtitle Application
+DEBUG BUILD for Windows: pyinstaller loba-windows-debug.spec
+
+This build shows a console window with Python logs for debugging.
+"""
+
+import sys
+from pathlib import Path
+
+block_cipher = None
+
+# Get the project root directory
+project_root = Path(SPECPATH)
+
+# Data files to include
+datas = [
+    # UI assets (HTML, CSS, JS)
+    (str(project_root / 'app' / 'ui' / 'overlay.html'), 'app/ui'),
+    (str(project_root / 'app' / 'ui' / 'overlay.css'), 'app/ui'),
+    (str(project_root / 'app' / 'ui' / 'overlay.js'), 'app/ui'),
+    (str(project_root / 'app' / 'ui' / 'control.html'), 'app/ui'),
+    # Models - Whisper
+    (str(project_root / 'models' / 'ggml-small.en-q5_1.bin'), 'models'),
+    # Models - Translation (MarianMT)
+    (str(project_root / 'models' / 'opus-mt-en-pt-ct2'), 'models/opus-mt-en-pt-ct2'),
+    # Models - Translation (M2M100)
+    (str(project_root / 'models' / 'm2m100-en-pt-br-ct2'), 'models/m2m100-en-pt-br-ct2'),
+]
+
+# Binaries to include (Windows version)
+binaries = [
+    (str(project_root / 'bin' / 'whisper-cli.exe'), 'bin'),
+    (str(project_root / 'bin' / '*.dll'), 'bin'),
+]
+
+# Hidden imports that PyInstaller might miss
+hiddenimports = [
+    'ctranslate2',
+    'sounddevice',
+    'pynput',
+    'pynput.keyboard',
+    'pynput.keyboard._win32',
+    'pynput._util',
+    'pynput._util.win32',
+    'aiohttp',
+    'transformers',
+    'sentencepiece',
+    'numpy',
+    'tkinter',
+    '_tkinter',
+    # Windows-specific
+    'win32api',
+    'win32con',
+    'win32gui',
+]
+
+a = Analysis(
+    [str(project_root / 'main.py')],
+    pathex=[str(project_root)],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name='Loba-Debug',
+    debug=True,              # Enable debug mode - shows more detailed errors
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,               # Disable UPX compression for easier debugging
+    console=True,            # Show console window with Python logs
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=None,
+    version=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,               # Disable UPX compression for easier debugging
+    upx_exclude=[],
+    name='Loba-Debug',
+)

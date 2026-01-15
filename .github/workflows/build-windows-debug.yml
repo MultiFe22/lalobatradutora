@@ -1,0 +1,72 @@
+name: Build Windows (Debug)
+
+on:
+  workflow_dispatch:  # Manual trigger only for debug builds
+
+jobs:
+  build-windows-debug:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller torch
+
+      - name: Create directories
+        run: |
+          New-Item -ItemType Directory -Force -Path models
+          New-Item -ItemType Directory -Force -Path bin
+
+      - name: Download Whisper model
+        run: |
+          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q5_1.bin" -OutFile "models/ggml-small.en-q5_1.bin"
+
+      - name: Convert MarianMT (Helsinki) to CTranslate2
+        run: |
+          python -c "
+          import ctranslate2
+          converter = ctranslate2.converters.TransformersConverter('Helsinki-NLP/opus-mt-tc-big-en-pt')
+          converter.convert('models/opus-mt-en-pt-ct2', quantization='int8', force=True)
+
+          from transformers import MarianTokenizer
+          tokenizer = MarianTokenizer.from_pretrained('Helsinki-NLP/opus-mt-tc-big-en-pt')
+          tokenizer.save_pretrained('models/opus-mt-en-pt-ct2')
+          "
+
+      - name: Convert M2M100 (Brazilian PT) to CTranslate2
+        run: |
+          python -c "
+          import ctranslate2
+          converter = ctranslate2.converters.TransformersConverter('danhsf/m2m100_418M-finetuned-kde4-en-to-pt_BR')
+          converter.convert('models/m2m100-en-pt-br-ct2', quantization='int8', force=True)
+
+          from transformers import M2M100Tokenizer
+          tokenizer = M2M100Tokenizer.from_pretrained('danhsf/m2m100_418M-finetuned-kde4-en-to-pt_BR')
+          tokenizer.save_pretrained('models/m2m100-en-pt-br-ct2')
+          "
+
+      - name: Build with PyInstaller (Debug)
+        run: |
+          pyinstaller loba-windows-debug.spec
+
+      - name: Create release archive
+        run: |
+          Compress-Archive -Path "dist/Loba-Debug/*" -DestinationPath "Loba-Windows-Debug-x64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Loba-Windows-Debug-x64
+          path: Loba-Windows-Debug-x64.zip
+          retention-days: 7
