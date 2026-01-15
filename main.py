@@ -13,6 +13,23 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
 from app.core import AppConfig, load_config, TranslateMode, ModeState, HotkeyHandler
+
+
+def get_base_path() -> Path:
+    """Get the base path for resources, handling both script and frozen app modes."""
+    if getattr(sys, 'frozen', False):
+        # Running as a bundled PyInstaller app
+        if hasattr(sys, '_MEIPASS'):
+            # Onefile mode - resources extracted to temp dir
+            return Path(sys._MEIPASS)
+        else:
+            # Onedir mode or macOS .app bundle
+            return Path(sys.executable).parent
+    else:
+        # Running as a script
+        return Path(__file__).parent.absolute()
+
+
 from app.core.events import create_final_event
 from app.core.segmenter import Segmenter, AudioSegment
 from app.adapters.audio_mic import MicrophoneCapture
@@ -33,6 +50,7 @@ class LobaApp:
         # Components
         self.server = OverlayServer(
             config.server,
+            ui_path=script_dir / "app" / "ui",
             overlay_config=config.overlay,
         )
         self.mic = MicrophoneCapture(
@@ -330,8 +348,8 @@ class LobaApp:
 
 async def main():
     """Main entry point."""
-    # Use paths relative to script location
-    script_dir = Path(__file__).parent.absolute()
+    # Use paths relative to base location (works for both script and frozen app)
+    script_dir = get_base_path()
 
     config = load_config()
     # Update paths to be absolute
