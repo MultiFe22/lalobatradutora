@@ -1,0 +1,17 @@
+Bin directory files (for reference):
+
+cublas64_12.dll - 100033536 bytes (~95 MB)
+cublasLt64_12.dll - 473551360 bytes (~451 MB)
+cudart64_12.dll - 553984 bytes (~541 KB)
+ggml-base.dll - 529408 bytes (~517 KB)
+ggml-cpu.dll - 606208 bytes (~592 KB)
+ggml-cuda.dll - 90296320 bytes (~86 MB)
+ggml.dll - 67584 bytes (~66 KB)
+nvblas64_12.dll - 331776 bytes (~324 KB)
+nvrtc-builtins64_124.dll - 5367808 bytes (~5 MB)
+nvrtc64_120_0.dll - 44738048 bytes (~43 MB)
+whisper-cli.exe - 480768 bytes (~469 KB)
+whisper.dll - 1307136 bytes (~1.2 MB)
+
+Note: whisper-cli (macOS binary) - 825800 bytes (~806 KB)
+Note: .gitkeep - 173 bytes
