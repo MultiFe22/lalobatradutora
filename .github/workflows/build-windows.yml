@@ -35,12 +35,12 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q5_1.bin" -OutFile "models/ggml-small.en-q5_1.bin"
 
-      - name: Download whisper-cli for Windows
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/ggml-org/whisper.cpp/releases/download/v1.7.3/whisper-bin-x64.zip" -OutFile "whisper-bin.zip"
-          Expand-Archive -Path "whisper-bin.zip" -DestinationPath "whisper-temp"
-          Copy-Item -Path "whisper-temp/whisper.exe" -Destination "bin/whisper-cli.exe" -ErrorAction SilentlyContinue
-          Copy-Item -Path "whisper-temp/main.exe" -Destination "bin/whisper-cli.exe" -ErrorAction SilentlyContinue
+      # - name: Download whisper-cli for Windows
+      #   run: |
+      #     Invoke-WebRequest -Uri "https://github.com/ggml-org/whisper.cpp/releases/download/v1.7.3/whisper-bin-x64.zip" -OutFile "whisper-bin.zip"
+      #     Expand-Archive -Path "whisper-bin.zip" -DestinationPath "whisper-temp"
+      #     Copy-Item -Path "whisper-temp/whisper.exe" -Destination "bin/whisper-cli.exe" -ErrorAction SilentlyContinue
+      #     Copy-Item -Path "whisper-temp/main.exe" -Destination "bin/whisper-cli.exe" -ErrorAction SilentlyContinue
 
       - name: Convert MarianMT (Helsinki) to CTranslate2
         run: |
