@@ -36,7 +36,7 @@ class SettingsWindow:
 
         self.root = tk.Tk()
         self.root.title("Loba Settings")
-        self.root.geometry("400x320")
+        self.root.geometry("400x380")
         self.root.resizable(False, False)
 
         # Handle window close
@@ -167,13 +167,16 @@ class SettingsWindow:
         value_label.pack(side=tk.RIGHT)
         setattr(self, f"_{var_name}_label", value_label)
 
-        # Slider
-        slider = ttk.Scale(
+        # Slider - use tk.Scale for visible handle on macOS
+        slider = tk.Scale(
             slider_frame,
             from_=from_,
             to=to,
+            resolution=resolution,
             variable=var,
             orient=tk.HORIZONTAL,
+            showvalue=False,
+            sliderlength=20,
             command=lambda v, vl=value_label, u=unit, r=resolution: self._update_value_label(vl, v, u, r)
         )
         slider.pack(fill=tk.X, expand=True, side=tk.LEFT, padx=(0, 10))
