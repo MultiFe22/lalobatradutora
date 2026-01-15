@@ -1,7 +1,16 @@
 """Application configuration with suggested default parameters."""
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+
+def _get_whisper_binary_name() -> Path:
+    """Get the platform-specific whisper binary name."""
+    if sys.platform == "win32":
+        return Path("bin/whisper-cli.exe")
+    else:
+        return Path("bin/whisper-cli")
 
 
 @dataclass
@@ -25,7 +34,7 @@ class SegmenterConfig:
 @dataclass
 class WhisperConfig:
     """Whisper transcription configuration."""
-    binary_path: Path = field(default_factory=lambda: Path("bin/whisper-cli"))
+    binary_path: Path = field(default_factory=_get_whisper_binary_name)
     model_path: Path = field(default_factory=lambda: Path("models/ggml-small.en-q5_1.bin"))
     language: str = "en"
     threads: int = 4

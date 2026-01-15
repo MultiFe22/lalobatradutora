@@ -29,7 +29,8 @@ MANIFEST
 
 # PyInstaller
 *.manifest
-*.spec
+# Keep spec files (loba.spec, loba-windows.spec)
+# *.spec
 
 # Virtual environments
 venv/
