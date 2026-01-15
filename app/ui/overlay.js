@@ -3,9 +3,10 @@
  * Connects to WebSocket and renders subtitles in real-time.
  */
 
-const SUBTITLE_TTL_MS = 4500;  // Optimized for RPG dialogue pacing
+// Defaults (will be overridden by server config)
+let SUBTITLE_TTL_MS = 4500;
+let MAX_LINES = 2;
 const RECONNECT_DELAY_MS = 2000;
-const MAX_LINES = 2;
 
 class SubtitleOverlay {
     constructor() {
@@ -13,7 +14,26 @@ class SubtitleOverlay {
         this.ws = null;
         this.fadeTimeout = null;
         this.lines = [];
+        this.init();
+    }
+
+    async init() {
+        await this.loadConfig();
         this.connect();
+    }
+
+    async loadConfig() {
+        try {
+            const response = await fetch('/api/config');
+            if (response.ok) {
+                const config = await response.json();
+                SUBTITLE_TTL_MS = config.subtitle_ttl_ms || SUBTITLE_TTL_MS;
+                MAX_LINES = config.max_lines || MAX_LINES;
+                console.log(`Config loaded: TTL=${SUBTITLE_TTL_MS}ms, MaxLines=${MAX_LINES}`);
+            }
+        } catch (e) {
+            console.warn('Failed to load config, using defaults:', e);
+        }
     }
 
     connect() {

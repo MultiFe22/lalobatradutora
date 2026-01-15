@@ -7,7 +7,7 @@ from typing import Set, Optional
 import mimetypes
 
 from ..core.events import SubtitleEvent, create_clear_event
-from ..core.config import ServerConfig
+from ..core.config import ServerConfig, OverlayConfig, SegmenterConfig
 
 
 class OverlayServer:
@@ -15,18 +15,21 @@ class OverlayServer:
     HTTP + WebSocket server for OBS Browser Source overlay.
 
     Endpoints:
-    - GET /overlay - Overlay HTML page for OBS
-    - GET /control - Control page with toggle button
-    - WS  /ws      - WebSocket for real-time subtitle events
+    - GET /overlay    - Overlay HTML page for OBS
+    - GET /control    - Control page with toggle button
+    - GET /api/config - Current overlay configuration
+    - WS  /ws         - WebSocket for real-time subtitle events
     """
 
     def __init__(
         self,
         config: ServerConfig,
         ui_path: Optional[Path] = None,
+        overlay_config: Optional[OverlayConfig] = None,
     ):
         self.config = config
         self.ui_path = ui_path or Path(__file__).parent.parent / "ui"
+        self.overlay_config = overlay_config or OverlayConfig()
         self._clients: Set[asyncio.StreamWriter] = set()
         self._ws_clients: Set = set()
         self._server = None
@@ -41,6 +44,7 @@ class OverlayServer:
             app.router.add_get("/", self._handle_index)
             app.router.add_get("/overlay", self._handle_overlay)
             app.router.add_get("/control", self._handle_control)
+            app.router.add_get("/api/config", self._handle_config)
             app.router.add_get("/ws", self._handle_websocket)
             app.router.add_static("/static", self.ui_path)
 
@@ -94,6 +98,15 @@ class OverlayServer:
         """Serve control page HTML."""
         from aiohttp import web
         return await self._serve_file("control.html", request)
+
+    async def _handle_config(self, request) -> "web.Response":
+        """Return current overlay configuration as JSON."""
+        from aiohttp import web
+        config_data = {
+            "subtitle_ttl_ms": int(self.overlay_config.subtitle_ttl_s * 1000),
+            "max_lines": self.overlay_config.max_lines,
+        }
+        return web.json_response(config_data)
 
     async def _serve_file(self, filename: str, request) -> "web.Response":
         """Serve a static file from ui_path."""

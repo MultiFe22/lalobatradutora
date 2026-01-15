@@ -19,6 +19,7 @@ from app.adapters.audio_mic import MicrophoneCapture
 from app.adapters.whisper_runner import WhisperRunner
 from app.adapters.translator import M2M100Translator, CTranslate2Translator
 from app.server import OverlayServer
+from app.ui.settings_window import SettingsWindow, SettingsValues
 
 
 class LobaApp:
@@ -29,7 +30,10 @@ class LobaApp:
         self.mode = TranslateMode()
 
         # Components
-        self.server = OverlayServer(config.server)
+        self.server = OverlayServer(
+            config.server,
+            overlay_config=config.overlay,
+        )
         self.mic = MicrophoneCapture(
             sample_rate=config.audio.sample_rate,
             channels=config.audio.channels,
@@ -46,10 +50,32 @@ class LobaApp:
         # Hotkey handler for F11 toggle
         self.hotkey = HotkeyHandler()
 
+        # Settings window (created on start)
+        self.settings_window: SettingsWindow | None = None
+
         # Set up callbacks
         self.mode.set_callback(self._on_mode_change)
         self.mic.set_callback(self._on_audio_chunk)
         self.hotkey.set_callback(self._on_hotkey_toggle)
+
+    def _on_settings_changed(self, values: SettingsValues) -> None:
+        """Handle settings changes from the UI."""
+        # Update overlay config
+        self.config.overlay.subtitle_ttl_s = values.subtitle_ttl_s
+        self.config.overlay.max_lines = values.max_lines
+
+        # Update segmenter config
+        self.config.segmenter.silence_threshold_ms = values.silence_threshold_ms
+
+        # Update server's overlay config reference
+        self.server.overlay_config = self.config.overlay
+
+    def _on_quit_requested(self) -> None:
+        """Handle quit request from settings window."""
+        if self._loop:
+            self._loop.call_soon_threadsafe(
+                self._loop.create_task, self.stop()
+            )
 
     async def start(self) -> None:
         """Start the application."""
@@ -119,12 +145,33 @@ class LobaApp:
         # Start with translation OFF - user presses F11 to enable
         print("\n" + "=" * 50)
         print("Ready! Press F11 to start/stop translation")
-        print("Press Ctrl+C to quit")
+        print("Use the Settings window to adjust or quit")
         print("=" * 50 + "\n")
 
-        # Main loop
+        # Create settings window
+        initial_settings = SettingsValues(
+            subtitle_ttl_s=self.config.overlay.subtitle_ttl_s,
+            max_lines=self.config.overlay.max_lines,
+            silence_threshold_ms=self.config.segmenter.silence_threshold_ms,
+        )
+        self.settings_window = SettingsWindow(
+            initial_values=initial_settings,
+            on_settings_changed=self._on_settings_changed,
+            on_quit=self._on_quit_requested,
+        )
+
+        # Main loop - process tkinter events
         while self._running:
-            await asyncio.sleep(0.1)
+            if self.settings_window and self.settings_window.is_alive():
+                self.settings_window.update()
+            else:
+                # Settings window was closed, quit the app
+                break
+            await asyncio.sleep(0.05)
+
+        # Ensure proper shutdown if loop exited
+        if self._running:
+            await self.stop()
 
     async def stop(self) -> None:
         """Stop the application."""

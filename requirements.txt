@@ -1,16 +1,19 @@
 # Loba - Live OBS Subtitles Dependencies
 
 # Audio capture
-sounddevice>=0.4.6
-numpy>=1.24.0
+sounddevice>=0.5.3
+numpy>=2.4.0
 
 # Web server
-aiohttp>=3.9.0
+aiohttp>=3.13.0
 
 # Global hotkey (cross-platform)
-pynput>=1.7.6
+pynput>=1.8.0
 
 # Translation (offline)
-ctranslate2>=4.0.0
-transformers>=4.36.0
-sentencepiece>=0.1.99
+ctranslate2>=4.6.0
+transformers>=4.57.0
+sentencepiece>=0.2.0
+
+# GUI (settings window)
+# tkinter - requires system install: brew install python-tk@3.12
