@@ -25,9 +25,10 @@ from app.ui.settings_window import SettingsWindow, SettingsValues
 class LobaApp:
     """Main application orchestrator."""
 
-    def __init__(self, config: AppConfig):
+    def __init__(self, config: AppConfig, script_dir: Path):
         self.config = config
         self.mode = TranslateMode()
+        self._script_dir = script_dir
 
         # Components
         self.server = OverlayServer(
@@ -42,6 +43,14 @@ class LobaApp:
         self.segmenter = Segmenter(config.segmenter)
         self.whisper = WhisperRunner(config.whisper)
         self.translator: CTranslate2Translator | None = None  # Lazy loaded
+
+        # Translation model paths
+        self._model_paths = {
+            "marian": script_dir / "models" / "opus-mt-en-pt-ct2",
+            "m2m100": script_dir / "models" / "m2m100-en-pt-br-ct2",
+        }
+        self._current_model: str = "none"
+        self._available_models: list[str] = self._detect_available_models()
 
         self._running = False
         self._executor = ThreadPoolExecutor(max_workers=2)
@@ -58,6 +67,30 @@ class LobaApp:
         self.mic.set_callback(self._on_audio_chunk)
         self.hotkey.set_callback(self._on_hotkey_toggle)
 
+    def _detect_available_models(self) -> list[str]:
+        """Detect which translation models are available."""
+        available = []
+        for name, path in self._model_paths.items():
+            if path.exists():
+                available.append(name)
+        available.append("none")  # Always allow disabling translation
+        return available
+
+    def set_translator(self, model_name: str) -> None:
+        """Set the active translation model."""
+        if model_name == "none":
+            self.translator = None
+            self._current_model = "none"
+            print("[Settings] Translation disabled")
+        elif model_name == "marian" and self._model_paths["marian"].exists():
+            self.translator = CTranslate2Translator(model_path=str(self._model_paths["marian"]))
+            self._current_model = "marian"
+            print("[Settings] Switched to MarianMT (European Portuguese)")
+        elif model_name == "m2m100" and self._model_paths["m2m100"].exists():
+            self.translator = M2M100Translator(model_path=str(self._model_paths["m2m100"]))
+            self._current_model = "m2m100"
+            print("[Settings] Switched to M2M100 (Brazilian Portuguese)")
+
     def _on_settings_changed(self, values: SettingsValues) -> None:
         """Handle settings changes from the UI."""
         # Update overlay config
@@ -69,6 +102,25 @@ class LobaApp:
 
         # Update server's overlay config reference
         self.server.overlay_config = self.config.overlay
+
+        # Switch translation model if changed
+        if values.translation_model != self._current_model:
+            self.set_translator(values.translation_model)
+            # Pre-load the new model in background
+            if self.translator and self._loop:
+                self._loop.call_soon_threadsafe(
+                    self._loop.create_task, self._preload_translator()
+                )
+
+    async def _preload_translator(self) -> None:
+        """Pre-load the translator model in background."""
+        if self.translator:
+            print("Loading translation model...")
+            await asyncio.get_running_loop().run_in_executor(
+                self._executor,
+                self.translator.load,
+            )
+            print("Translation model ready!")
 
     def _on_quit_requested(self) -> None:
         """Handle quit request from settings window."""
@@ -153,9 +205,11 @@ class LobaApp:
             subtitle_ttl_s=self.config.overlay.subtitle_ttl_s,
             max_lines=self.config.overlay.max_lines,
             silence_threshold_ms=self.config.segmenter.silence_threshold_ms,
+            translation_model=self._current_model,
         )
         self.settings_window = SettingsWindow(
             initial_values=initial_settings,
+            available_models=self._available_models,
             on_settings_changed=self._on_settings_changed,
             on_quit=self._on_quit_requested,
         )
@@ -284,18 +338,13 @@ async def main():
     config.whisper.binary_path = script_dir / config.whisper.binary_path
     config.whisper.model_path = script_dir / config.whisper.model_path
 
-    app = LobaApp(config)
+    app = LobaApp(config, script_dir)
 
-    # Set up translator with absolute path (prefer MarianMT for better accuracy)
-    marian_path = script_dir / "models" / "opus-mt-en-pt-ct2"
-    m2m100_path = script_dir / "models" / "m2m100-en-pt-br-ct2"
-
-    if marian_path.exists():
-        app.translator = CTranslate2Translator(model_path=str(marian_path))
-        print("MarianMT model found, EN->PT translation enabled")
-    elif m2m100_path.exists():
-        app.translator = M2M100Translator(model_path=str(m2m100_path))
-        print("M2M100 model found, EN->PT-BR (Brazilian) translation enabled")
+    # Set up default translator (prefer MarianMT for better accuracy)
+    if "marian" in app._available_models:
+        app.set_translator("marian")
+    elif "m2m100" in app._available_models:
+        app.set_translator("m2m100")
     else:
         print("No translation model found")
         print("Running in transcription-only mode (English)")

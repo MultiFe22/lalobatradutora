@@ -12,6 +12,7 @@ class SettingsValues:
     subtitle_ttl_s: float
     max_lines: int
     silence_threshold_ms: int
+    translation_model: str  # "marian" or "m2m100"
 
 
 class SettingsWindow:
@@ -24,19 +25,28 @@ class SettingsWindow:
     - Pause detection sensitivity
     """
 
+    # Model display names
+    MODEL_NAMES = {
+        "marian": "MarianMT (European Portuguese)",
+        "m2m100": "M2M100 (Brazilian Portuguese)",
+        "none": "None (English only)",
+    }
+
     def __init__(
         self,
         initial_values: SettingsValues,
+        available_models: list[str] | None = None,
         on_settings_changed: Optional[Callable[[SettingsValues], None]] = None,
         on_quit: Optional[Callable[[], None]] = None,
     ):
         self.on_settings_changed = on_settings_changed
         self.on_quit = on_quit
         self._values = initial_values
+        self._available_models = available_models or ["none"]
 
         self.root = tk.Tk()
         self.root.title("Loba Settings")
-        self.root.geometry("400x380")
+        self.root.geometry("420x520")
         self.root.resizable(False, False)
 
         # Handle window close
@@ -101,6 +111,9 @@ class SettingsWindow:
             row=2,
             var_name="silence_threshold"
         )
+
+        # Translation model dropdown
+        self._create_model_dropdown(settings_frame)
 
         # Buttons frame
         button_frame = ttk.Frame(main_frame)
@@ -182,6 +195,34 @@ class SettingsWindow:
         slider.pack(fill=tk.X, expand=True, side=tk.LEFT, padx=(0, 10))
         setattr(self, f"_{var_name}_slider", slider)
 
+    def _create_model_dropdown(self, parent: ttk.Frame) -> None:
+        """Create the translation model dropdown."""
+        frame = ttk.Frame(parent)
+        frame.pack(fill=tk.X, pady=(0, 15))
+
+        # Label and description
+        lbl = ttk.Label(frame, text="Translation Model", font=("Helvetica", 11, "bold"))
+        lbl.pack(anchor=tk.W)
+
+        desc = ttk.Label(frame, text="Language model for translation", foreground="gray")
+        desc.pack(anchor=tk.W)
+
+        # Dropdown
+        self._model_var = tk.StringVar()
+
+        # Build display values list
+        display_values = [self.MODEL_NAMES.get(m, m) for m in self._available_models]
+
+        dropdown = ttk.Combobox(
+            frame,
+            textvariable=self._model_var,
+            values=display_values,
+            state="readonly",
+            width=35,
+        )
+        dropdown.pack(anchor=tk.W, pady=(5, 0))
+        self._model_dropdown = dropdown
+
     def _update_value_label(self, label: ttk.Label, value: str, unit: str, resolution: float) -> None:
         """Update the value display label."""
         val = float(value)
@@ -201,12 +242,26 @@ class SettingsWindow:
         self._update_value_label(self._max_lines_label, str(self._values.max_lines), "", 1)
         self._update_value_label(self._silence_threshold_label, str(self._values.silence_threshold_ms), "ms", 50)
 
+        # Set model dropdown
+        model_display = self.MODEL_NAMES.get(self._values.translation_model, self._values.translation_model)
+        self._model_var.set(model_display)
+
+    def _get_model_key_from_display(self, display_name: str) -> str:
+        """Convert display name back to model key."""
+        for key, name in self.MODEL_NAMES.items():
+            if name == display_name:
+                return key
+        return display_name  # Fallback
+
     def _apply_settings(self) -> None:
         """Apply current settings."""
+        model_key = self._get_model_key_from_display(self._model_var.get())
+
         values = SettingsValues(
             subtitle_ttl_s=round(self._subtitle_ttl_var.get() * 2) / 2,  # Round to 0.5
             max_lines=int(self._max_lines_var.get()),
             silence_threshold_ms=int(round(self._silence_threshold_var.get() / 50) * 50),  # Round to 50
+            translation_model=model_key,
         )
 
         self._values = values
@@ -214,7 +269,7 @@ class SettingsWindow:
         if self.on_settings_changed:
             self.on_settings_changed(values)
 
-        print(f"[Settings] Applied: TTL={values.subtitle_ttl_s}s, Lines={values.max_lines}, Silence={values.silence_threshold_ms}ms")
+        print(f"[Settings] Applied: TTL={values.subtitle_ttl_s}s, Lines={values.max_lines}, Silence={values.silence_threshold_ms}ms, Model={model_key}")
 
     def _reset_defaults(self) -> None:
         """Reset to default values."""
@@ -226,6 +281,10 @@ class SettingsWindow:
         self._update_value_label(self._subtitle_ttl_label, "4.5", "s", 0.5)
         self._update_value_label(self._max_lines_label, "2", "", 1)
         self._update_value_label(self._silence_threshold_label, "300", "ms", 50)
+
+        # Reset model to first available (prefer marian)
+        default_model = "marian" if "marian" in self._available_models else self._available_models[0]
+        self._model_var.set(self.MODEL_NAMES.get(default_model, default_model))
 
     def _handle_quit(self) -> None:
         """Handle quit button or window close."""
