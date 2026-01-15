@@ -46,11 +46,11 @@ jobs:
         run: |
           python -c "
           import ctranslate2
-          converter = ctranslate2.converters.TransformersConverter('Helsinki-NLP/opus-mt-en-pt')
+          converter = ctranslate2.converters.TransformersConverter('Helsinki-NLP/opus-mt-tc-big-en-pt')
           converter.convert('models/opus-mt-en-pt-ct2', quantization='int8', force=True)
 
           from transformers import MarianTokenizer
-          tokenizer = MarianTokenizer.from_pretrained('Helsinki-NLP/opus-mt-en-pt')
+          tokenizer = MarianTokenizer.from_pretrained('Helsinki-NLP/opus-mt-tc-big-en-pt')
           tokenizer.save_pretrained('models/opus-mt-en-pt-ct2')
           "
 
