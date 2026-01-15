@@ -15,11 +15,11 @@ class AudioConfig:
 @dataclass
 class SegmenterConfig:
     """VAD and segmentation configuration."""
-    silence_threshold_ms: int = 400  # 300-500ms to finalize
-    max_segment_length_s: float = 10.0  # 8-12s force finalize
+    silence_threshold_ms: int = 300  # tighter for RPG dialogue pacing
+    max_segment_length_s: float = 12.0  # longer for character monologues
     chunk_overlap_ms: int = 200  # helps avoid cut words
     energy_threshold: float = 0.01  # RMS energy threshold for VAD
-    min_speech_duration_ms: int = 250  # minimum speech to consider valid
+    min_speech_duration_ms: int = 200  # catch brief exclamations
 
 
 @dataclass
@@ -34,7 +34,7 @@ class WhisperConfig:
 @dataclass
 class OverlayConfig:
     """Overlay display configuration."""
-    subtitle_ttl_s: float = 6.0  # seconds before fade out
+    subtitle_ttl_s: float = 4.5  # shorter for RPG dialogue pace
     max_lines: int = 2  # rolling buffer of lines
 
 

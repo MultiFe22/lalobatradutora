@@ -3,7 +3,7 @@
  * Connects to WebSocket and renders subtitles in real-time.
  */
 
-const SUBTITLE_TTL_MS = 6000;  // Time before subtitle fades out
+const SUBTITLE_TTL_MS = 4500;  // Optimized for RPG dialogue pacing
 const RECONNECT_DELAY_MS = 2000;
 const MAX_LINES = 2;
 
