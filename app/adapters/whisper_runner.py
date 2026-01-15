@@ -4,7 +4,6 @@ import json
 import subprocess
 import tempfile
 import wave
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -82,6 +81,7 @@ class WhisperRunner:
             "-of", str(output_base),  # Output file base (will add .json)
             "-oj",  # Output JSON
             "-np",  # No prints (quiet mode)
+            "-sns",  # Suppress non-speech tokens (brackets, musical notes, etc.)
         ]
 
         try:
