@@ -36,19 +36,19 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://github.com/ggml-org/whisper.cpp/releases/download/v1.8.2/whisper-cublas-12.4.0-bin-x64.zip" -OutFile "whisper-bin.zip"
           Expand-Archive -Path "whisper-bin.zip" -DestinationPath "whisper-temp"
-          # Copy required DLLs and binaries to bin folder
-          Copy-Item -Path "whisper-temp/cublas64_12.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/cublasLt64_12.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/cudart64_12.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/ggml-base.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/ggml-cpu.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/ggml-cuda.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/ggml.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/nvblas64_12.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/nvrtc-builtins64_124.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/nvrtc64_120_0.dll" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/whisper-cli.exe" -Destination "bin/"
-          Copy-Item -Path "whisper-temp/whisper.dll" -Destination "bin/"
+          # Copy required DLLs and binaries to bin folder (files are inside Release folder)
+          Copy-Item -Path "whisper-temp/Release/cublas64_12.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/cublasLt64_12.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/cudart64_12.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/ggml-base.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/ggml-cpu.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/ggml-cuda.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/ggml.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/nvblas64_12.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/nvrtc-builtins64_124.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/nvrtc64_120_0.dll" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/whisper-cli.exe" -Destination "bin/"
+          Copy-Item -Path "whisper-temp/Release/whisper.dll" -Destination "bin/"
           # Cleanup
           Remove-Item -Path "whisper-bin.zip"
           Remove-Item -Path "whisper-temp" -Recurse
