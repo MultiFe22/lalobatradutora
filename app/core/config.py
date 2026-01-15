@@ -48,6 +48,12 @@ class OverlayConfig:
 
 
 @dataclass
+class HotkeyConfig:
+    """Hotkey configuration."""
+    toggle_key: str = "f11"  # default to F11
+
+
+@dataclass
 class ServerConfig:
     """HTTP/WebSocket server configuration."""
     host: str = "127.0.0.1"
@@ -61,6 +67,7 @@ class AppConfig:
     segmenter: SegmenterConfig = field(default_factory=SegmenterConfig)
     whisper: WhisperConfig = field(default_factory=WhisperConfig)
     overlay: OverlayConfig = field(default_factory=OverlayConfig)
+    hotkey: HotkeyConfig = field(default_factory=HotkeyConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
 
 

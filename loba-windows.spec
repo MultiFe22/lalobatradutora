@@ -30,6 +30,7 @@ datas = [
 # Binaries to include (Windows version)
 binaries = [
     (str(project_root / 'bin' / 'whisper-cli.exe'), 'bin'),
+    (str(project_root / 'bin' / '*.dll'), 'bin'),
 ]
 
 # Hidden imports that PyInstaller might miss

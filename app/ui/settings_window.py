@@ -13,6 +13,7 @@ class SettingsValues:
     max_lines: int
     silence_threshold_ms: int
     translation_model: str  # "marian" or "m2m100"
+    hotkey: str = "f11"  # default to F11
 
 
 class SettingsWindow:
@@ -46,7 +47,7 @@ class SettingsWindow:
 
         self.root = tk.Tk()
         self.root.title("Loba Settings")
-        self.root.geometry("420x520")
+        self.root.geometry("420x580")
         self.root.resizable(False, False)
 
         # Handle window close
@@ -114,6 +115,9 @@ class SettingsWindow:
 
         # Translation model dropdown
         self._create_model_dropdown(settings_frame)
+
+        # Hotkey selector dropdown
+        self._create_hotkey_dropdown(settings_frame)
 
         # Buttons frame
         button_frame = ttk.Frame(main_frame)
@@ -223,6 +227,34 @@ class SettingsWindow:
         dropdown.pack(anchor=tk.W, pady=(5, 0))
         self._model_dropdown = dropdown
 
+    def _create_hotkey_dropdown(self, parent: ttk.Frame) -> None:
+        """Create the hotkey selector dropdown."""
+        frame = ttk.Frame(parent)
+        frame.pack(fill=tk.X, pady=(0, 15))
+
+        # Label and description
+        lbl = ttk.Label(frame, text="Toggle Hotkey", font=("Helvetica", 11, "bold"))
+        lbl.pack(anchor=tk.W)
+
+        desc = ttk.Label(frame, text="Key to enable/disable translation", foreground="gray")
+        desc.pack(anchor=tk.W)
+
+        # Dropdown
+        self._hotkey_var = tk.StringVar()
+
+        # Available hotkeys (F1-F12)
+        hotkey_options = [f"F{i}" for i in range(1, 13)]
+
+        dropdown = ttk.Combobox(
+            frame,
+            textvariable=self._hotkey_var,
+            values=hotkey_options,
+            state="readonly",
+            width=10,
+        )
+        dropdown.pack(anchor=tk.W, pady=(5, 0))
+        self._hotkey_dropdown = dropdown
+
     def _update_value_label(self, label: ttk.Label, value: str, unit: str, resolution: float) -> None:
         """Update the value display label."""
         val = float(value)
@@ -246,6 +278,9 @@ class SettingsWindow:
         model_display = self.MODEL_NAMES.get(self._values.translation_model, self._values.translation_model)
         self._model_var.set(model_display)
 
+        # Set hotkey dropdown
+        self._hotkey_var.set(self._values.hotkey.upper())
+
     def _get_model_key_from_display(self, display_name: str) -> str:
         """Convert display name back to model key."""
         for key, name in self.MODEL_NAMES.items():
@@ -256,12 +291,14 @@ class SettingsWindow:
     def _apply_settings(self) -> None:
         """Apply current settings."""
         model_key = self._get_model_key_from_display(self._model_var.get())
+        hotkey = self._hotkey_var.get().lower()
 
         values = SettingsValues(
             subtitle_ttl_s=round(self._subtitle_ttl_var.get() * 2) / 2,  # Round to 0.5
             max_lines=int(self._max_lines_var.get()),
             silence_threshold_ms=int(round(self._silence_threshold_var.get() / 50) * 50),  # Round to 50
             translation_model=model_key,
+            hotkey=hotkey,
         )
 
         self._values = values
@@ -269,7 +306,7 @@ class SettingsWindow:
         if self.on_settings_changed:
             self.on_settings_changed(values)
 
-        print(f"[Settings] Applied: TTL={values.subtitle_ttl_s}s, Lines={values.max_lines}, Silence={values.silence_threshold_ms}ms, Model={model_key}")
+        print(f"[Settings] Applied: TTL={values.subtitle_ttl_s}s, Lines={values.max_lines}, Silence={values.silence_threshold_ms}ms, Model={model_key}, Hotkey={hotkey.upper()}")
 
     def _reset_defaults(self) -> None:
         """Reset to default values."""
@@ -285,6 +322,9 @@ class SettingsWindow:
         # Reset model to first available (prefer marian)
         default_model = "marian" if "marian" in self._available_models else self._available_models[0]
         self._model_var.set(self.MODEL_NAMES.get(default_model, default_model))
+
+        # Reset hotkey to F11
+        self._hotkey_var.set("F11")
 
     def _handle_quit(self) -> None:
         """Handle quit button or window close."""

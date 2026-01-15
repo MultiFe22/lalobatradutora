@@ -74,8 +74,8 @@ class LobaApp:
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._loop: asyncio.AbstractEventLoop | None = None
 
-        # Hotkey handler for F11 toggle
-        self.hotkey = HotkeyHandler()
+        # Hotkey handler with configured toggle key
+        self.hotkey = HotkeyHandler(hotkey=config.hotkey.toggle_key)
 
         # Settings window (created on start)
         self.settings_window: SettingsWindow | None = None
@@ -120,6 +120,11 @@ class LobaApp:
 
         # Update server's overlay config reference
         self.server.overlay_config = self.config.overlay
+
+        # Update hotkey if changed
+        if values.hotkey != self.config.hotkey.toggle_key:
+            self.config.hotkey.toggle_key = values.hotkey
+            self.hotkey.set_hotkey(values.hotkey)
 
         # Switch translation model if changed
         if values.translation_model != self._current_model:
@@ -212,9 +217,9 @@ class LobaApp:
             print("Make sure sounddevice is installed: pip install sounddevice")
             return
 
-        # Start with translation OFF - user presses F11 to enable
+        # Start with translation OFF - user presses hotkey to enable
         print("\n" + "=" * 50)
-        print("Ready! Press F11 to start/stop translation")
+        print(f"Ready! Press {self.config.hotkey.toggle_key.upper()} to start/stop translation")
         print("Use the Settings window to adjust or quit")
         print("=" * 50 + "\n")
 
@@ -224,6 +229,7 @@ class LobaApp:
             max_lines=self.config.overlay.max_lines,
             silence_threshold_ms=self.config.segmenter.silence_threshold_ms,
             translation_model=self._current_model,
+            hotkey=self.config.hotkey.toggle_key,
         )
         self.settings_window = SettingsWindow(
             initial_values=initial_settings,
@@ -270,10 +276,10 @@ class LobaApp:
         print("Goodbye!")
 
     def _on_hotkey_toggle(self) -> None:
-        """Handle F11 hotkey press."""
+        """Handle hotkey press."""
         new_state = self.mode.toggle()
         status = "ON - Translating" if new_state == ModeState.ON else "OFF - Paused"
-        print(f"\n[F11] Translation: {status}")
+        print(f"\n[{self.config.hotkey.toggle_key.upper()}] Translation: {status}")
 
     def _on_mode_change(self, state: ModeState) -> None:
         """Handle mode state changes."""
