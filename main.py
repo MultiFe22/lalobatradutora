@@ -70,6 +70,9 @@ class LobaApp:
         self._current_model: str = "none"
         self._available_models: list[str] = self._detect_available_models()
 
+        # Microphone tracking for debug info
+        self._current_microphone: str = "default"
+
         self._running = False
         self._executor = ThreadPoolExecutor(max_workers=2)
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -207,11 +210,13 @@ class LobaApp:
             for d in devices:
                 print(f"  [{d.index}] {d.name}")
             print()
+            # Store default device name for debug info
+            self._current_microphone = devices[0].name
 
         # Start microphone capture (uses default device)
         try:
             self.mic.start()
-            print("Microphone capture started")
+            print(f"Microphone capture started: {self._current_microphone}")
         except Exception as e:
             print(f"Failed to start microphone: {e}")
             print("Make sure sounddevice is installed: pip install sounddevice")
@@ -343,7 +348,7 @@ class LobaApp:
                     output_lang = "en"
 
                 # Broadcast to overlay
-                event = create_final_event(output_text, language=output_lang)
+                event = create_final_event(output_text, language=output_lang, microphone=self._current_microphone)
                 await self.server.broadcast(event)
             else:
                 print("  (no speech detected)")

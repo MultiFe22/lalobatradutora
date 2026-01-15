@@ -169,38 +169,54 @@
         function connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
+            console.log(`[WebSocket Control] Connecting to: ${wsUrl}`);
 
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
+                console.log('[WebSocket Control] Connected ✓');
                 document.getElementById('status-indicator').classList.remove('disconnected');
                 document.getElementById('status-indicator').classList.add('connected');
                 document.getElementById('status-text').textContent = 'Connected';
             };
 
             ws.onclose = () => {
+                console.log('[WebSocket Control] Disconnected, reconnecting in 2s...');
                 document.getElementById('status-indicator').classList.remove('connected');
                 document.getElementById('status-indicator').classList.add('disconnected');
                 document.getElementById('status-text').textContent = 'Disconnected';
                 setTimeout(connect, 2000);
             };
 
+            ws.onerror = (error) => {
+                console.error('[WebSocket Control] Error:', error);
+            };
+
             ws.onmessage = (event) => {
+                const timestamp = new Date().toLocaleTimeString();
+                console.log(`[${timestamp}] [WebSocket Control] Message:`, event.data);
                 try {
                     const data = JSON.parse(event.data);
                     if (data.type === 'mode') {
+                        console.log(`[${timestamp}] [WebSocket Control] Mode changed: ${data.enabled ? 'ON' : 'OFF'}`);
                         updateButtonState(data.enabled);
                     }
-                } catch (e) {}
+                } catch (e) {
+                    console.error('[WebSocket Control] Parse error:', e);
+                }
             };
         }
 
         function toggleMode() {
             if (ws && ws.readyState === WebSocket.OPEN) {
+                const newState = !isEnabled;
+                console.log(`[WebSocket Control] Sending toggle: ${newState ? 'ON' : 'OFF'}`);
                 ws.send(JSON.stringify({ type: 'toggle' }));
                 // Optimistically update UI
-                isEnabled = !isEnabled;
+                isEnabled = newState;
                 updateButtonState(isEnabled);
+            } else {
+                console.warn('[WebSocket Control] Cannot send: WebSocket not connected');
             }
         }
 

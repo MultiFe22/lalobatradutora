@@ -39,11 +39,12 @@ class SubtitleOverlay {
     connect() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log(`[WebSocket] Connecting to: ${wsUrl}`);
 
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-            console.log('WebSocket connected');
+            console.log('[WebSocket] Connected ✓');
         };
 
         this.ws.onmessage = (event) => {
@@ -51,35 +52,39 @@ class SubtitleOverlay {
         };
 
         this.ws.onclose = () => {
-            console.log('WebSocket disconnected, reconnecting...');
+            console.log('[WebSocket] Disconnected, reconnecting in 2s...');
             setTimeout(() => this.connect(), RECONNECT_DELAY_MS);
         };
 
         this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
+            console.error('[WebSocket] Error:', error);
         };
     }
 
     handleMessage(data) {
+        console.log('[WebSocket] Raw message:', data);
         try {
             const event = JSON.parse(data);
+            const timestamp = new Date().toLocaleTimeString();
 
             switch (event.type) {
                 case 'final':
+                    console.log(`[${timestamp}] [WebSocket] FINAL (${event.language || 'unknown'}): "${event.text}" [Mic: ${event.microphone || 'default'}]`);
                     this.showSubtitle(event.text);
                     break;
                 case 'partial':
-                    // Optionally show interim results with different styling
+                    console.log(`[${timestamp}] [WebSocket] PARTIAL: "${event.text}"`);
                     this.showPartial(event.text);
                     break;
                 case 'clear':
+                    console.log(`[${timestamp}] [WebSocket] CLEAR`);
                     this.clearSubtitle();
                     break;
                 default:
-                    console.log('Unknown event type:', event.type);
+                    console.log(`[${timestamp}] [WebSocket] UNKNOWN EVENT:`, event);
             }
         } catch (e) {
-            console.error('Failed to parse message:', e);
+            console.error('[WebSocket] Parse error:', e, '| Raw data:', data);
         }
     }
 

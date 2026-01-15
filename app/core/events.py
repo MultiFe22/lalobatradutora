@@ -21,6 +21,7 @@ class SubtitleEvent:
     text: str = ""
     timestamp: float = 0.0
     language: str = "en"
+    microphone: str = ""  # Microphone device name for debugging
 
     def __post_init__(self):
         if self.timestamp == 0.0:
@@ -33,6 +34,7 @@ class SubtitleEvent:
             "text": self.text,
             "timestamp": self.timestamp,
             "language": self.language,
+            "microphone": self.microphone,
         })
 
     @classmethod
@@ -44,17 +46,18 @@ class SubtitleEvent:
             text=obj.get("text", ""),
             timestamp=obj.get("timestamp", 0.0),
             language=obj.get("language", "en"),
+            microphone=obj.get("microphone", ""),
         )
 
 
-def create_final_event(text: str, language: str = "pt") -> SubtitleEvent:
+def create_final_event(text: str, language: str = "pt", microphone: str = "") -> SubtitleEvent:
     """Create a final subtitle event (translated text)."""
-    return SubtitleEvent(type=EventType.FINAL, text=text, language=language)
+    return SubtitleEvent(type=EventType.FINAL, text=text, language=language, microphone=microphone)
 
 
-def create_partial_event(text: str) -> SubtitleEvent:
+def create_partial_event(text: str, microphone: str = "") -> SubtitleEvent:
     """Create a partial subtitle event (interim transcription)."""
-    return SubtitleEvent(type=EventType.PARTIAL, text=text, language="en")
+    return SubtitleEvent(type=EventType.PARTIAL, text=text, language="en", microphone=microphone)
 
 
 def create_clear_event() -> SubtitleEvent:

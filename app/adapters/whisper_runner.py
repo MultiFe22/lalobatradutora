@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 import tempfile
 import wave
 from dataclasses import dataclass
@@ -85,11 +86,18 @@ class WhisperRunner:
         ]
 
         try:
+            # Suppress console window on Windows
+            creationflags = 0
+            if sys.platform == "win32":
+                # CREATE_NO_WINDOW flag (0x08000000) suppresses console window on Windows
+                creationflags = 0x08000000
+
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=30,
+                creationflags=creationflags,
             )
 
             if result.returncode != 0:
